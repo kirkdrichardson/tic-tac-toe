@@ -31,17 +31,18 @@ class Board extends Component {
           alert("computer won");
           this.resetBoard();
         }
-        else {
+        else if (this.state.computerTurn) {
           alert("It's a triump of humanity!!!");
           this.resetBoard();
         }
       }
+      else if (this.state.turn === 9){
+        alert("It's a tie!");
+        this.resetBoard();
+      }
 
     }
-    if (this.state.turn === 9) {
-      alert("It's a tie!");
-      this.resetBoard();
-    }
+
 
     if (this.state.computerTurn && this.state.playerAssigned && this.state.modeSet) {
       if (this.state.easyMode)
@@ -108,9 +109,38 @@ class Board extends Component {
     this.setState({
       modeSet: true,
       easyMode: selectedEasy,
-      prompt: prompt
+      prompt: prompt,
+      computerTurn: true
     });
   }
+
+
+
+  getPlayerPositionObj = () => {
+    const board = this.state.board;
+    const computerChar = this.state.computerPlayer;
+    const humanChar = this.state.humanPlayer;
+    const humanPositions = [];
+    const computerPositions = [];
+    const emptySquares = [];
+
+    board.forEach(function(char, index) {
+      if (char === computerChar && computerChar !== '')
+        computerPositions.push(index)
+      else if (char === humanChar && humanChar !== '')
+        humanPositions.push(index)
+      else
+        emptySquares.push(index)
+    });
+
+    return {
+      computerIndices: computerPositions,
+      humanIndices: humanPositions,
+      emptyIndices: emptySquares
+    }
+
+  }
+
 
   setBoardState = () => {
     const positionObj = this.getPlayerPositionObj();
@@ -178,44 +208,22 @@ class Board extends Component {
   }
 
 
-  getPlayerPositionObj = () => {
-    const board = this.state.board;
-    const computerChar = this.state.computerPlayer;
-    const humanChar = this.state.humanPlayer;
-    const humanPositions = [];
-    const computerPositions = [];
-    const emptySquares = [];
 
-    board.forEach(function(char, index) {
-      if (char === computerChar)
-        computerPositions.push(index)
-      else if (char === humanChar)
-        humanPositions.push(index)
-      else
-        emptySquares.push(index)
-    });
-
-    return {
-      computerIndices: computerPositions,
-      humanIndices: humanPositions,
-      emptyIndices: emptySquares
-    }
-
-  }
 
   computerPlayHard = () => {
     let newBoard;
     const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
     const randomCorner = [0, 2, 6, 8][Math.floor(Math.random() * 4)];
     let hasMoved = false;
-    const positionObj = this.getPlayerPositionObj();
-    let availableIndices = positionObj.emptyIndices;
-    const humanIndices = positionObj.humanIndices;
-    const computerIndices = positionObj.computerIndices;
 
-    console.log('availableIndices is ', availableIndices)
-    console.log('humanIndices is ', humanIndices)
-    console.log('computerIndices is ', computerIndices)
+    let availableIndices = this.state.availableIndices
+    let humanIndices = this.state.humanIndices
+    let computerIndices = this.state.computerIndices
+
+    // console.log('####################################')
+    // console.log('availableIndices was ', this.state.availableIndices)
+    // console.log('humanIndices was ', this.state.humanIndices)
+    // console.log('computerIndices was ', this.state.computerIndices)
 
 
     switch (this.state.computerTurn) {
@@ -228,11 +236,9 @@ class Board extends Component {
 
       case this.state.turn === 2:
 
-          const center = this.state.board[4];
-          const firstMove = positionObj.computerIndices[0];
-
+          let center = this.state.board[4];
+          const firstMove = computerIndices[0];
           let secondMove;
-          console.log(positionObj)
 
           if (center !== "")
             secondMove = ( firstMove === 0) ? 8 : (firstMove === 2) ? 6 : (firstMove === 6) ? 2 : 0;
@@ -241,15 +247,14 @@ class Board extends Component {
             const corners = [0, 2, 6, 8];
             // get corners computer has not played
             corners.splice([0, 2, 6, 8].indexOf(firstMove), 1);
-            console.log(corners);
 
             corners.forEach(function(corner) {
               // if corner has not been played
               if (availableIndices.indexOf(corner) !== -1) {
                 // check that the human play is not in the middle of the next corner
                 winningCombos.forEach(function(combo) {
-                  if (combo.indexOf(corner) !== -1 && combo[1] !== humanIndices[0]) {
-                    console.log(humanIndices[0])
+                  // if the combo contains the first move, proposed move, and opponent has not moved in the middle
+                  if (combo.indexOf(computerIndices[0]) !== -1 && combo.indexOf(corner) !== -1 && combo[1] !== humanIndices[0]) {
                     secondMove = corner;
                   }
                 });
@@ -263,23 +268,50 @@ class Board extends Component {
 
       case this.state.turn === 4:
         let thirdMove;
-        // handle case where win is possible
-        winningCombos.forEach(function(combo) {
-          // if computer has played in two of three winningCombos
-          if (combo.indexOf(computerIndices[0]) !== -1 && combo.indexOf(computerIndices[1])) {
-            combo.forEach(function(index) {
-              // and if the winning position is not taken
-              if (computerIndices.indexOf(index) === -1 && availableIndices.indexOf(index) !== -1)
-                thirdMove = index;
-            });
-          }
-        });
+        let checkWin = this.winPossible(); // if true returns [true, index of best move]
+        let checkLoss = this.lossPossible();
 
-        // handle case where loss is possible
+        if (checkWin[0])
+          thirdMove = checkWin[1];
+        else if (checkLoss[0]) {
+          thirdMove = checkLoss[1];
+        }
+        else {
+          alert('revert to easy version');
+          this.setState({ turn: this.state.turn - 1 })
+          this.computerPlay();
+        }
 
         newBoard = this.generateNewBoard(thirdMove);
         break;
 
+
+
+
+        case this.state.turn === 6:
+          alert('gucc')
+          let fourthMove;
+          checkWin = this.winPossible(); // if true returns [true, index of best move]
+          checkLoss = this.lossPossible(); // inverse of above logic
+          let forkPossible = this.createFork();
+          console.log('checkWin is ', checkWin)
+          console.log('forkPossible is ', forkPossible);
+
+          if (checkWin[0])
+            fourthMove = checkWin[1];
+          else if (checkLoss[0])
+            fourthMove = checkLoss[1];
+          else if (forkPossible[0]) {
+            fourthMove = forkPossible[1];
+          }
+          else {
+            this.setState({ turn: this.state.turn - 1 })
+            this.computerPlay();
+
+          }
+
+        newBoard = this.generateNewBoard(fourthMove);
+        break;
 
 
       default:
@@ -295,17 +327,101 @@ class Board extends Component {
 
     }
 
-    this.setBoardState();
     this.setState({
       board: newBoard,
       computerTurn: false,
       turn: this.state.turn + 1
     });
+    this.setBoardState();
+    // console.log('########################################')
+    // console.log('availableIndices IS ', this.state.availableIndices)
+    // console.log('humanIndices IS ', this.state.humanIndices)
+    // console.log('computerIndices IS ', this.state.computerIndices)
+  }
 
+
+  winPossible = () => {
+    const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    let availableIndices = this.state.availableIndices
+    let humanIndices = this.state.humanIndices
+    let computerIndices = this.state.computerIndices
+    let retArr = [];
+
+    winningCombos.forEach(function(combo) {
+      let firstIndex = combo.indexOf(computerIndices[0]);
+      let secondIndex = combo.indexOf(computerIndices[1]);
+      // if computer has played in two of three winningCombos
+      if (firstIndex !== -1 && secondIndex !== -1) {
+        combo.forEach(function(index) {
+          // and if the winning position is not taken
+          if (index !== firstIndex && index !== secondIndex) {
+            let remainingIndex = index;
+            let isAvailable = availableIndices.indexOf(remainingIndex) !== -1
+            if (isAvailable) {
+              retArr.push(true);
+              retArr.push(index);
+            }
+          }
+
+        });
+      }
+    });
+    return retArr;
+  }
+
+
+  createFork = () => {
+    const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    let availableIndices = this.state.availableIndices
+    let humanIndices = this.state.humanIndices
+    let computerIndices = this.state.computerIndices
+    let openSquares = [];
+    let retArr = [];
+
+    const possibleCombos = winningCombos.forEach(function(combo) {
+            let firstIndex = combo.indexOf(computerIndices[0]);
+            let secondIndex = combo.indexOf(computerIndices[1]);
+            // if computer has played in two of three winningCombos
+            if (firstIndex !== -1 || secondIndex !== -1) {
+              return combo;
+            }
+          });
+
+    console.log('0000000000000   ', possibleCombos)
+    return possibleCombos;
   }
 
 
 
+
+  lossPossible = () => {
+    const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    let availableIndices = this.state.availableIndices
+    let humanIndices = this.state.humanIndices
+    let computerIndices = this.state.computerIndices
+    let retArr = [false, null];
+
+    winningCombos.forEach(function(combo) {
+      let firstIndex = combo.indexOf(humanIndices[0]);
+      let secondIndex = combo.indexOf(humanIndices[1]);
+      // if computer has played in two of three winningCombos
+      if (firstIndex !== -1 && secondIndex !== -1) {
+        combo.forEach(function(index) {
+          // and if the winning position is not taken
+          if (index !== firstIndex && index !== secondIndex) {
+            let remainingIndex = index;
+            let isAvailable = availableIndices.indexOf(remainingIndex) !== -1
+            if (isAvailable) {
+              retArr = [true, index]
+              console.log('%%%%%% SUCCESS %%%%%%%%% retArr for checkLoss is ', retArr)
+            }
+          }
+
+        });
+      }
+    });
+    return retArr;
+  }
 
 /**************************************/
   render() {

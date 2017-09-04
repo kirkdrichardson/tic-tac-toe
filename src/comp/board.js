@@ -277,8 +277,8 @@ class Board extends Component {
           thirdMove = checkLoss[1];
         }
         else {
-          alert('revert to easy version');
-          this.setState({ turn: this.state.turn - 1 })
+          alert('revert to easy version. later insert forkPossible here');
+          this.setState({ turn: this.state.turn - 2 })
           this.computerPlay();
         }
 
@@ -292,6 +292,7 @@ class Board extends Component {
           alert('gucc')
           let fourthMove;
           checkWin = this.winPossible(); // if true returns [true, index of best move]
+          console.log('checkWin defined as ', checkWin)
           checkLoss = this.lossPossible(); // inverse of above logic
           let forkPossible = this.createFork();
           console.log('checkWin is ', checkWin)
@@ -301,9 +302,8 @@ class Board extends Component {
             fourthMove = checkWin[1];
           else if (checkLoss[0])
             fourthMove = checkLoss[1];
-          else if (forkPossible[0]) {
-            fourthMove = forkPossible[1];
-          }
+          // else if (forkPossible[0])
+          //   fourthMove = forkPossible[1];
           else {
             this.setState({ turn: this.state.turn - 1 })
             this.computerPlay();
@@ -342,14 +342,60 @@ class Board extends Component {
 
   winPossible = () => {
     const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    let availableIndices = this.state.availableIndices
-    let humanIndices = this.state.humanIndices
-    let computerIndices = this.state.computerIndices
-    let retArr = [];
+    let computerIndices = this.state.computerIndices;
+    let availableIndices = this.state.availableIndices;
+    let possibleCombos = [];
+    let canWin = false;
+    let finalIndex;
 
     winningCombos.forEach(function(combo) {
-      let firstIndex = combo.indexOf(computerIndices[0]);
-      let secondIndex = combo.indexOf(computerIndices[1]);
+       // if any combo has two of the indices in computer indices
+        let cnt = 0;
+        combo.forEach(function(index, i, arr) {
+          if (computerIndices.indexOf(index) !== -1 ) {
+            ++cnt;
+          }
+          if (cnt === 2) {
+            possibleCombos.push(arr); // push if arr contains two computer squares
+          }
+        });
+      });
+      // if the third index is empty, assign it to finalIndex
+      possibleCombos.forEach(function(comboArr) {
+        console.log('new possibleCombo is ', comboArr)
+
+        for (let i = 0; i < comboArr.length; i++) {
+          let testIndex = availableIndices.indexOf(comboArr[i]);
+          console.log('availableIndices is ', availableIndices)
+          console.log('specific index of availableIndices is ', comboArr[i])
+          console.log('testIndex is ', testIndex)
+          if (testIndex !== -1) {
+            finalIndex = availableIndices[testIndex];
+            canWin = true;
+            console.log("########   finalIndex is ", finalIndex)
+            break;
+          }
+        }
+
+      });
+    return [canWin, finalIndex];
+  }
+
+
+
+
+
+
+
+  lossPossible = () => {
+    const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    let availableIndices = this.state.availableIndices
+    let humanIndices = this.state.humanIndices
+    let retArr = [false, null];
+
+    winningCombos.forEach(function(combo) {
+      let firstIndex = combo.indexOf(humanIndices[0]);
+      let secondIndex = combo.indexOf(humanIndices[1]);
       // if computer has played in two of three winningCombos
       if (firstIndex !== -1 && secondIndex !== -1) {
         combo.forEach(function(index) {
@@ -358,8 +404,8 @@ class Board extends Component {
             let remainingIndex = index;
             let isAvailable = availableIndices.indexOf(remainingIndex) !== -1
             if (isAvailable) {
-              retArr.push(true);
-              retArr.push(index);
+              retArr = [true, index]
+              console.log('%%%%%% SUCCESS %%%%%%%%% retArr for checkLoss is ', retArr)
             }
           }
 
@@ -392,36 +438,6 @@ class Board extends Component {
   }
 
 
-
-
-  lossPossible = () => {
-    const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    let availableIndices = this.state.availableIndices
-    let humanIndices = this.state.humanIndices
-    let computerIndices = this.state.computerIndices
-    let retArr = [false, null];
-
-    winningCombos.forEach(function(combo) {
-      let firstIndex = combo.indexOf(humanIndices[0]);
-      let secondIndex = combo.indexOf(humanIndices[1]);
-      // if computer has played in two of three winningCombos
-      if (firstIndex !== -1 && secondIndex !== -1) {
-        combo.forEach(function(index) {
-          // and if the winning position is not taken
-          if (index !== firstIndex && index !== secondIndex) {
-            let remainingIndex = index;
-            let isAvailable = availableIndices.indexOf(remainingIndex) !== -1
-            if (isAvailable) {
-              retArr = [true, index]
-              console.log('%%%%%% SUCCESS %%%%%%%%% retArr for checkLoss is ', retArr)
-            }
-          }
-
-        });
-      }
-    });
-    return retArr;
-  }
 
 /**************************************/
   render() {

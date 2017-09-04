@@ -16,7 +16,10 @@ class Board extends Component {
       turn: 0,
       prompt: "Select whether you'd like to battle with X or O",
       modeSet: false,
-      easyMode: true
+      easyMode: true,
+      availableIndices: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      humanIndices: [],
+      computerIndices: []
     }
   }
 
@@ -48,6 +51,7 @@ class Board extends Component {
     }
   }
 
+
   resetBoard = () => {
     this.setState({
       humanPlayer: '',
@@ -58,7 +62,10 @@ class Board extends Component {
       turn: 0,
       prompt: "Select whether you'd like to battle with X or O",
       modeSet: false,
-      easyMode: true
+      easyMode: true,
+      availableIndices: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      humanIndices: [],
+      computerIndices: []
     });
   }
 
@@ -105,6 +112,18 @@ class Board extends Component {
     });
   }
 
+  setBoardState = () => {
+    const positionObj = this.getPlayerPositionObj();
+    const availableIndices = positionObj.emptyIndices;
+    const humanIndices = positionObj.humanIndices;
+    const computerIndices = positionObj.computerIndices;
+
+    this.setState({
+      availableIndices: availableIndices,
+      humanIndices: humanIndices,
+      computerIndices: computerIndices
+    });
+  }
 
   handleUserMove = (id) => {
     if (this.state.computerTurn === false && this.state.board[id] === "") {
@@ -116,11 +135,13 @@ class Board extends Component {
           return square;
         }
       });
+
       this.setState({
         board: newBoard,
         turn: this.state.turn + 1,
         computerTurn: true
       });
+      this.setBoardState();
     }
   }
 
@@ -140,6 +161,7 @@ class Board extends Component {
       computerTurn: false,
       turn: this.state.turn + 1
     });
+    this.setBoardState();
 
   }
 
@@ -183,8 +205,18 @@ class Board extends Component {
 
   computerPlayHard = () => {
     let newBoard;
+    const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
     const randomCorner = [0, 2, 6, 8][Math.floor(Math.random() * 4)];
     let hasMoved = false;
+    const positionObj = this.getPlayerPositionObj();
+    let availableIndices = positionObj.emptyIndices;
+    const humanIndices = positionObj.humanIndices;
+    const computerIndices = positionObj.computerIndices;
+
+    console.log('availableIndices is ', availableIndices)
+    console.log('humanIndices is ', humanIndices)
+    console.log('computerIndices is ', computerIndices)
+
 
     switch (this.state.computerTurn) {
 
@@ -193,20 +225,62 @@ class Board extends Component {
         newBoard = this.generateNewBoard(randomCorner);
         break;
 
+
       case this.state.turn === 2:
-          const positionObj = this.getPlayerPositionObj();
+
           const center = this.state.board[4];
           const firstMove = positionObj.computerIndices[0];
+
           let secondMove;
+          console.log(positionObj)
 
           if (center !== "")
             secondMove = ( firstMove === 0) ? 8 : (firstMove === 2) ? 6 : (firstMove === 6) ? 2 : 0;
-          else if (center === "")
-            
 
+          else if (center === "") {
+            const corners = [0, 2, 6, 8];
+            // get corners computer has not played
+            corners.splice([0, 2, 6, 8].indexOf(firstMove), 1);
+            console.log(corners);
 
+            corners.forEach(function(corner) {
+              // if corner has not been played
+              if (availableIndices.indexOf(corner) !== -1) {
+                // check that the human play is not in the middle of the next corner
+                winningCombos.forEach(function(combo) {
+                  if (combo.indexOf(corner) !== -1 && combo[1] !== humanIndices[0]) {
+                    console.log(humanIndices[0])
+                    secondMove = corner;
+                  }
+                });
+              }
+            });
+          }
           newBoard = this.generateNewBoard(secondMove);
           break;
+
+
+
+      case this.state.turn === 4:
+        let thirdMove;
+        // handle case where win is possible
+        winningCombos.forEach(function(combo) {
+          // if computer has played in two of three winningCombos
+          if (combo.indexOf(computerIndices[0]) !== -1 && combo.indexOf(computerIndices[1])) {
+            combo.forEach(function(index) {
+              // and if the winning position is not taken
+              if (computerIndices.indexOf(index) === -1 && availableIndices.indexOf(index) !== -1)
+                thirdMove = index;
+            });
+          }
+        });
+
+        // handle case where loss is possible
+
+        newBoard = this.generateNewBoard(thirdMove);
+        break;
+
+
 
       default:
         // place in next available spot
@@ -221,7 +295,7 @@ class Board extends Component {
 
     }
 
-
+    this.setBoardState();
     this.setState({
       board: newBoard,
       computerTurn: false,

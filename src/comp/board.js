@@ -19,32 +19,19 @@ class Board extends Component {
       easyMode: true,
       availableIndices: [0, 1, 2, 3, 4, 5, 6, 7, 8],
       humanIndices: [],
-      computerIndices: []
+      computerIndices: [],
+      gameOver: false
     }
   }
 
   // checks for a winner or end of game
   componentDidUpdate() {
+    // check if game has finished & update state, set timer, & reset
     if (this.state.turn > 2) {
-      if (this.playerWon(this.state.board)) {
-        if (this.state.computerTurn === false){
-          alert("computer won");
-          this.resetBoard();
-        }
-        else if (this.state.computerTurn) {
-          alert("It's a triump of humanity!!!");
-          this.resetBoard();
-        }
-      }
-      else if (this.state.turn === 9){
-        alert("It's a tie!");
-        this.resetBoard();
-      }
-
+      this.updateStateOnGameEnd();
     }
 
-
-    if (this.state.computerTurn && this.state.playerAssigned && this.state.modeSet) {
+    if (this.state.computerTurn && this.state.playerAssigned && this.state.modeSet && this.state.gameOver === false) {
       if (this.state.easyMode)
         setTimeout(this.computerPlay, 400);
       else
@@ -66,10 +53,36 @@ class Board extends Component {
       easyMode: true,
       availableIndices: [0, 1, 2, 3, 4, 5, 6, 7, 8],
       humanIndices: [],
-      computerIndices: []
+      computerIndices: [],
+      gameOver: false
     });
   }
 
+  updateStateOnGameEnd = () => {
+    if (this.playerWon(this.state.board)) {
+      if (this.state.computerTurn === false){
+        this.setState({
+          prompt: "First Kasparov, now you. Our time is limited.",
+          gameOver: true
+        }, () => setTimeout(this.resetBoard, 2500));
+      }
+      else if (this.state.computerTurn) {
+        this.setState({
+          prompt: "It's a triumph of humanity!",
+          gameOver: true
+        }, () => setTimeout(this.resetBoard, 2500));
+      }
+    }
+    else if (this.state.turn === 9){
+      this.setState({
+        prompt: "Dead even. I'll reset the board.",
+        gameOver: true
+      }, () => setTimeout(this.resetBoard, 2500));
+    }
+    else {
+      return null;
+    }
+  }
 
   playerWon = (boardState) => {
     const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
@@ -104,13 +117,14 @@ class Board extends Component {
 
 
   setMode = (val) => {
-    const selectedEasy = val === "Easy" ? true : false;
-    const prompt = selectedEasy ? "Pshh, who needs luck?" : "Machine says:  self  >  human."
+    const selectedEasy = (val === "Easy") ? true : false;
+    const computerTurnBoolean = selectedEasy ? false : true
+    const prompt = selectedEasy ? "Pshh, who needs luck? Your move." : "Machine says:  self  >  human."
     this.setState({
       modeSet: true,
       easyMode: selectedEasy,
       prompt: prompt,
-      computerTurn: true
+      computerTurn: computerTurnBoolean
     });
   }
 
@@ -156,7 +170,7 @@ class Board extends Component {
   }
 
   handleUserMove = (id) => {
-    if (this.state.computerTurn === false && this.state.board[id] === "") {
+    if (this.state.computerTurn === false && this.state.board[id] === "" && this.state.gameOver === false) {
       // create new board state
       const newBoard = this.state.board.map((square, index, arr) => {
         if (index === id && arr[id] === "")
@@ -175,26 +189,49 @@ class Board extends Component {
     }
   }
 
-
-  computerPlay = () => {
-    let hasMoved = false;
-    const newBoard = this.state.board.map((square, index, arr) => {
-      if (square === "" && hasMoved === false){
-        hasMoved = true;
-        return square = this.state.computerPlayer;
-      }
-      else
-        return square;
-    });
-    this.setState({
-      board: newBoard,
-      computerTurn: false,
-      turn: this.state.turn + 1
-    });
-    this.setBoardState();
-
+  // returns a random index of an available square
+  randomMove = () => {
+      let available = this.state.availableIndices;
+      let numberOpen = available.length;
+      let randomIndex = Math.floor(Math.random() * numberOpen);
+      console.log('\n availableIndices is ', available, '\n numberOfOpenings is ', numberOpen, '\n random board index is ', available[randomIndex])
+      return available[randomIndex];
   }
 
+
+// can't handle a user win. Runs away
+  computerPlay = () => {
+    if (this.state.gameOver === false) {
+      let humanIndices = this.state.humanIndices
+      let computerIndices = this.state.computerIndices
+      let checkWin = this.winPossible(this.state.computerIndices); // if true returns [true, index of best move]
+      let checkLoss = this.winPossible(this.state.humanIndices);
+      let moveIndex;
+
+      switch (this.state.computerTurn) {
+        case (checkWin[0]):
+          moveIndex = checkWin[1];
+          break;
+        case (checkLoss[0]):
+          moveIndex = checkLoss[1]
+          break;
+        default:
+          moveIndex = this.randomMove();
+      }
+
+      const newBoard = this.generateNewBoard(moveIndex);
+
+      this.setState({
+        board: newBoard,
+        computerTurn: false,
+        turn: this.state.turn + 1
+      });
+      this.setBoardState();
+    }
+  }
+
+
+// returns an array with updated board state
   generateNewBoard = (boardIndex) => {
     let hasMoved = false;
     return this.state.board.map((square, index) => {
@@ -207,6 +244,15 @@ class Board extends Component {
   });
   }
 
+  /*
+    this.state.board.map((square, index, arr) => {
+      if (square === "" && hasMoved === false){
+        hasMoved = true;
+        return square = this.state.computerPlayer;
+      }
+      else
+        return square;
+  */
 
 
 
@@ -219,14 +265,12 @@ class Board extends Component {
     let availableIndices = this.state.availableIndices
     let humanIndices = this.state.humanIndices
     let computerIndices = this.state.computerIndices
-
     // console.log('####################################')
     // console.log('availableIndices was ', this.state.availableIndices)
     // console.log('humanIndices was ', this.state.humanIndices)
     // console.log('computerIndices was ', this.state.computerIndices)
 
-
-    switch (this.state.computerTurn) {
+    switch (this.state.computerTurn && this.state.gameOver === false) {
 
       case this.state.turn === 0:
         // first move: place in random corner
@@ -247,7 +291,6 @@ class Board extends Component {
             const corners = [0, 2, 6, 8];
             // get corners computer has not played
             corners.splice([0, 2, 6, 8].indexOf(firstMove), 1);
-
             corners.forEach(function(corner) {
               // if corner has not been played
               if (availableIndices.indexOf(corner) !== -1) {
@@ -268,19 +311,23 @@ class Board extends Component {
 
       case this.state.turn === 4:
         let thirdMove;
-        let checkWin = this.winPossible(); // if true returns [true, index of best move]
-        let checkLoss = this.lossPossible();
-
+        let checkWin = this.winPossible(this.state.computerIndices); // if true returns [true, index of best move]
+        let checkLoss = this.winPossible(this.state.humanIndices);
         if (checkWin[0])
           thirdMove = checkWin[1];
         else if (checkLoss[0]) {
           thirdMove = checkLoss[1];
         }
-        else {
-          alert('revert to easy version. later insert forkPossible here');
-          this.setState({ turn: this.state.turn - 2 })
-          this.computerPlay();
+        else if (availableIndices.indexOf(4) !== -1){
+          thirdMove = 4; // center of the board, if available
         }
+        else {
+
+        }
+
+        // alert('revert to easy version. later insert forkPossible here');
+        // this.setState({ turn: this.state.turn - 2 })
+        // this.computerPlay();
 
         newBoard = this.generateNewBoard(thirdMove);
         break;
@@ -291,9 +338,9 @@ class Board extends Component {
         case this.state.turn === 6:
           alert('gucc')
           let fourthMove;
-          checkWin = this.winPossible(); // if true returns [true, index of best move]
+          checkWin = this.winPossible(this.state.computerIndices); // if true returns [true, index of best move]
           console.log('checkWin defined as ', checkWin)
-          checkLoss = this.lossPossible(); // inverse of above logic
+          checkLoss = this.winPossible(this.state.humanIndices); // inverse of above logic
           let forkPossible = this.createFork();
           console.log('checkWin is ', checkWin)
           console.log('forkPossible is ', forkPossible);
@@ -339,10 +386,11 @@ class Board extends Component {
     // console.log('computerIndices IS ', this.state.computerIndices)
   }
 
-
-  winPossible = () => {
+  // checks if player (passed as arg) can win on next move
+  // returns an arr in form [Boolean, index of winning move]
+  winPossible = (playerIndicesToAnalyze) => {
     const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    let computerIndices = this.state.computerIndices;
+    let playerIndices = playerIndicesToAnalyze;
     let availableIndices = this.state.availableIndices;
     let possibleCombos = [];
     let canWin = false;
@@ -352,7 +400,7 @@ class Board extends Component {
        // if any combo has two of the indices in computer indices
         let cnt = 0;
         combo.forEach(function(index, i, arr) {
-          if (computerIndices.indexOf(index) !== -1 ) {
+          if (playerIndices.indexOf(index) !== -1 ) {
             ++cnt;
           }
           if (cnt === 2) {
@@ -362,57 +410,17 @@ class Board extends Component {
       });
       // if the third index is empty, assign it to finalIndex
       possibleCombos.forEach(function(comboArr) {
-        console.log('new possibleCombo is ', comboArr)
-
         for (let i = 0; i < comboArr.length; i++) {
           let testIndex = availableIndices.indexOf(comboArr[i]);
-          console.log('availableIndices is ', availableIndices)
-          console.log('specific index of availableIndices is ', comboArr[i])
-          console.log('testIndex is ', testIndex)
           if (testIndex !== -1) {
             finalIndex = availableIndices[testIndex];
             canWin = true;
-            console.log("########   finalIndex is ", finalIndex)
             break;
           }
         }
 
       });
     return [canWin, finalIndex];
-  }
-
-
-
-
-
-
-
-  lossPossible = () => {
-    const winningCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    let availableIndices = this.state.availableIndices
-    let humanIndices = this.state.humanIndices
-    let retArr = [false, null];
-
-    winningCombos.forEach(function(combo) {
-      let firstIndex = combo.indexOf(humanIndices[0]);
-      let secondIndex = combo.indexOf(humanIndices[1]);
-      // if computer has played in two of three winningCombos
-      if (firstIndex !== -1 && secondIndex !== -1) {
-        combo.forEach(function(index) {
-          // and if the winning position is not taken
-          if (index !== firstIndex && index !== secondIndex) {
-            let remainingIndex = index;
-            let isAvailable = availableIndices.indexOf(remainingIndex) !== -1
-            if (isAvailable) {
-              retArr = [true, index]
-              console.log('%%%%%% SUCCESS %%%%%%%%% retArr for checkLoss is ', retArr)
-            }
-          }
-
-        });
-      }
-    });
-    return retArr;
   }
 
 
